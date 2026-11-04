@@ -1,0 +1,258 @@
+    products.append(new_id)
+    inventory_records.append([new_id, name, float(price), int(stock), exp])
+    print("\n[OK] Product added!")
+    time.sleep(0.6)
+    return True
+
+
+def handle_stock_transaction(is_restock):
+    action_name = "RESTOCK" if is_restock else "SALE"
+    
+    while True:
+        display_stock_guide(action_name)
+        
+        # 1. ID Loop
+        pid = None
+        while True:
+            raw_id = input("ID: ").strip()
+            if raw_id == '0':
+                return
+            try:
+                pid = int(raw_id)
+                record_found = next((r for r in inventory_records if r[0] == pid), None)
+                if not record_found:
+                    print(f"\n[ERROR] ID {pid} not found! Please try again.")
+                    continue
+                break
+            except ValueError:
+                print("\n[ERROR] Invalid input! Numeric value required for ID. Try again.")
+
+        # 2. Quantity Loop
+        while True:
+            raw_qty = input("Quantity: ").strip()
+            if raw_qty == '0':
+                break
+            try:
+                qty = int(raw_qty)
+                if qty <= 0:
+                    print("\n[ERROR] Quantity must be greater than zero. Try again.")
+                    continue
+                
+                # Check stock availability for sale
+                if not is_restock and qty > record_found[3]:
+                    print(f"\n[ERROR] Not enough stock! Current stock for {record_found[1]} is {record_found[3]}. Try a lower quantity.")
+                    continue
+                
+                # Execute update
+                record_found[3] += qty if is_restock else -qty
+                total = round(qty * record_found[2], 2)
+                
+                if is_restock:
+                    print(f"\n[OK] Restocked {qty} of {record_found[1]} | Total: PHP {total:.2f}")
+                else:
+                    print(f"\n[OK] Sold {qty} of {record_found[1]} | Total: PHP {total:.2f}")
+                
+                time.sleep(0.8)
+                break
+            except ValueError:
+                print("\n[ERROR] Invalid input! Numeric value required for Quantity. Try again.")
+        
+        if raw_qty == '0':
+            continue
+
+
+def display_inventory_report():
+    print("\n--- INVENTORY REPORT ---")
+    print(f"{'ID':<8} {'NAME':<22} {'PRICE':<8} {'STOCK':<8} {'EXPIRATION':<15}")
+    for r in inventory_records:
+        days = (datetime.strptime(r[4], "%Y-%m-%d").date() - date.today()).days
+        status = "[EXPIRED]" if days < 0 else ("[EXPIRING]" if days <= 3 else "OK")
+        print(f"{r[0]:<8} {r[1]:<22} {r[2]:<8.2f} {r[3]:<8} {r[4]} {status}")
+    print("0. Back")
+    while True:
+        choice = input("Select: ").strip()
+        if choice == '0':
+            break
+        print("\n[ERROR] Invalid input! Type 0 to go back.")
+
+
+def display_low_stock_alerts():
+    print("\n--- LOW STOCK (<= 5) ---")
+    found = False
+    for r in inventory_records:
+        if r[3] <= 5:
+            print(f"ID {r[0]} | {r[1]} | Stock: {r[3]} [REORDER]")
+            found = True
+    if not found: print("All items are well-stocked.")
+    print("0. Back")
+    while True:
+        choice = input("Select: ").strip()
+        if choice == '0':
+            break
+        print("\n[ERROR] Invalid input! Type 0 to go back.")
+
+
+def main():
+    while True:
+        print("\n--- FOODSTOCK: CARMEN CDO ---")
+        print("1. Staff Portal")
+        print("2. Manager Admin Portal")
+        print("3. Exit")
+        
+        portal_choice = input("Select portal (1-3): ").strip()
+        
+        if portal_choice == '3' or not portal_choice:
+            print("\nGoodbye!")
+            break
+        elif portal_choice == '1':
+            user = portal_login_handler(is_manager_portal=False)
+            if user == "EXIT": continue
+        elif portal_choice == '2':
+            user = portal_login_handler(is_manager_portal=True)
+            if user == "EXIT": continue
+        else:
+            print("\n[ERROR] Invalid choice! Please select 1, 2, or 3.")
+            continue
+
+        is_manager = "manager" in user
+
+        while True:
+            print(f"\n--- MENU ({user}) ---")
+            if is_manager:
+                print("1. Add Product")
+                print("2. Restock (Stock-In)")
+                print("3. Sell (Stock-Out)")
+                print("4. View Inventory")
+                print("5. Low Stock Alerts")
+                print("6. Logout")
+            else:
+                print("1. Restock (Stock-In)")
+                print("2. Sell (Stock-Out)")
+                print("3. View Inventory")
+                print("4. Low Stock Alerts")
+                print("5. Logout")
+
+            choice = input("Select: ").strip()
+
+            if is_manager:
+                if choice == '1':
+                    # Continuous Add Product Loop
+                    while True:
+                        display_registration_guide()
+                        
+                        # 1. ID Loop
+                        pid = None
+                        while True:
+                            raw_id = input("ID: ").strip()
+                            if raw_id == '0':
+                                break
+                            try:
+                                pid = int(raw_id)
+                                break
+                            except ValueError:
+                                print("\n[ERROR] Invalid input! Numeric value required for ID. Try again.")
+                        if raw_id == '0': break
+
+                        # 2. Name Loop
+                        name = ""
+                        while True:
+                            name = input("Name: ").strip()
+                            if name == '0':
+                                print("\n[INFO] Cancelled.")
+                                break
+                            if name == "":
+                                print("\n[ERROR] Name cannot be empty. Try again.")
+                                continue
+                            break
+                        if name == '0': continue
+
+                        # 3. Price Loop
+                        price = None
+                        while True:
+                            price_input = input("Price: ").strip()
+                            if price_input == '0':
+                                print("\n[INFO] Cancelled.")
+                                break
+                            try:
+                                price = float(price_input)
+                                if price < 0:
+                                    print("\n[ERROR] Price cannot be negative.")
+                                    continue
+                                break
+                            except ValueError:
+                                print("\n[ERROR] Invalid input! Numeric value required for Price. Try again.")
+                        if price_input == '0': continue
+
+                        # 4. Stock Loop
+                        stock = None
+                        while True:
+                            stock_input = input("Stock: ").strip()
+                            if stock_input == '0':
+                                print("\n[INFO] Cancelled.")
+                                break
+                            try:
+                                stock = int(stock_input)
+                                if stock < 0:
+                                    print("\n[ERROR] Stock cannot be negative.")
+                                    continue
+                                break
+                            except ValueError:
+                                print("\n[ERROR] Invalid input! Numeric value required for Stock. Try again.")
+                        if stock_input == '0': continue
+
+                        # 5. Expiration Date Loop
+                        exp_date = None
+                        while True:
+                            exp_input = input("Expiration Date (YYYY-MM-DD): ").strip()
+                            if exp_input == '0':
+                                print("\n[INFO] Cancelled product registration.")
+                                break
+                            try:
+                                parsed_date = datetime.strptime(exp_input, "%Y-%m-%d").date()
+                                if parsed_date < date.today():
+                                    print("\n[ERROR] Expiration date cannot be in the past. Must be present or future.")
+                                    continue
+                                exp_date = exp_input
+                                break
+                            except ValueError:
+                                print("\n[ERROR] Invalid format! Please use YYYY-MM-DD. Try again.")
+                        if exp_input == '0': continue
+
+                        register_product(pid, name, price, stock, exp_date)
+
+                elif choice == '2':
+                    handle_stock_transaction(is_restock=True)
+                elif choice == '3':
+                    handle_stock_transaction(is_restock=False)
+                elif choice == '4':
+                    display_inventory_report()
+                elif choice == '5':
+                    display_low_stock_alerts()
+                elif choice == '6':
+                    print("\nLogged out.")
+                    time.sleep(0.8)
+                    break
+                else:
+                    print("\n[ERROR] Invalid choice! Please select a valid option.")
+                    time.sleep(0.8)
+            else:
+                # Staff Menu mapping
+                if choice == '1':
+                    handle_stock_transaction(is_restock=True)
+                elif choice == '2':
+                    handle_stock_transaction(is_restock=False)
+                elif choice == '3':
+                    display_inventory_report()
+                elif choice == '4':
+                    display_low_stock_alerts()
+                elif choice == '5':
+                    print("\nLogged out.")
+                    time.sleep(0.8)
+                    break
+                else:
+                    print("\n[ERROR] Invalid choice! Please select a valid option.")
+                    time.sleep(0.8)
+
+
+if __name__ == "__main__":
+    main()
